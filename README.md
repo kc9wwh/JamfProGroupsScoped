@@ -1,14 +1,15 @@
 # JamfProGroupsScoped
 ###### Have you ever wanted to know what was scoped to your Jamf Pro groups? Well, now you can!
 ___
-This script was created to help you understand what is actually scoped to your groups in Jamf Pro. Currently the script only checks Policies against Computer Groups, but I will be adding Configuration Profiles, Restricted Software and Mac App Store apps in the very near future. Then adapting the script to also support mobile device groups.
+This script was created to help you understand what is actually scoped to your groups in Jamf Pro. The script will check against Computer Policies, Configuration Profiles, Restricted Software, Mac App Store apps and eBooks.
 
 Requirements:
 * Jamf Pro
+* API Read Only User
 
 Written By: Joshua Roskos | Professional Services Engineer | Jamf
 
-Created On: October 2nd, 2017 | Updated On: October 25th, 2017
+Created On: October 2nd, 2017 | Updated On: October 26th, 2017
 ___
 
 ### Why is this needed?
@@ -21,7 +22,7 @@ As our Jamf Pro environments grow, we're always adding groups to use for scoping
 **Step 1 - Configure the Script**
 
 When you open the script you will find some user variables that will need to be defined as specified below:
-* CompGroupsScoped.sh - Lines 56-59
+* CompGroupsScoped.sh - Lines 57-60
 
 
 **Step 2 - Run the Script**

@@ -32,8 +32,9 @@
 #
 # What is scoped to my Computer Groups?
 #
-# In this script we will utilize the Jamf Pro API to determine what Policies are assigned
-# to your Computer Groups.
+# In this script we will utilize the Jamf Pro API to determine what Policies, Configuration
+# Profiles, Restricted Software, Mac App Store Apps and eBooks are assigned to your
+# Computer Groups.
 #
 # OBJECTIVES
 #       - Create a list of all Smart Groups
@@ -45,7 +46,7 @@
 # Written by: Joshua Roskos | Professional Services Engineer | Jamf
 #
 # Created On: October 2nd, 2017
-# Updated On: October 25th, 2017
+# Updated On: October 26th, 2017
 #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
@@ -57,6 +58,62 @@ jamfURL="https://acme.jamfcloud.com"
 jamfUser="apiread"
 jamfPass="password"
 currentUser=$(/usr/bin/stat -f%Su /dev/console)
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# FUNCTIONS
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+## Function Format - findScopedObjects
+## $1: Object Type (Policy, Configuration Profile, Restricted Software, Mac App Store App, eBook)
+## $2: Object API Endpoint (policies, osxconfigurationprofiles, restrictedsoftware, macapplications, ebooks)
+## $3: xpath/XML Tree - Top Level Only (policy, os_x_configuration_profile, restricted_software, mac_application, ebook)
+function findScopedObjects() {
+    echo "Retrieving List of All $1 IDs..."
+    unset objectIDs
+    objectIDs=( $( curl -k -s -u "$jamfUser":"$jamfPass" $jamfURL/JSSResource/$2 -H "Accept: application/xml" -X GET | /usr/bin/perl -lne 'BEGIN{undef $/} while (/<id>(.*?)<\/id>/sg){print $1}' ) )
+    for i in "${objectIDs[@]}"; do
+        echo "Retrieving $1 ID ${i}'s' Data..."
+        objectData=$( curl -k -s -u "$jamfUser":"$jamfPass" $jamfURL/JSSResource/$2/id/${i} -H "Accept: application/xml" -X GET )
+        objectName=$( echo $objectData | xpath "//$3/general/name/text()" )
+        if [[ "$1" == "Policy" ]]; then
+            ## Check if is a Jamf Remote Policy
+            echo "Checking if this is a Jamf Remote Policy..."
+            if [[ $objectName == $( echo $objectName | egrep -B1 '[0-9]+-[0-9]{2}-[0-9]{2} at [0-9]{1,2}:[0-9]{2,2} [AP]M \| .* \| .*' ) ]]; then
+                ## This is a Jamf Remote Policy
+                ## Setting policy name in array to "JamfRemotePolicy-Ignore"
+                echo "    This is a Jamf Remote policy"
+                continue
+            else
+                ## This is NOT a Casper Remote Policy
+                ## Storing Policy Name and Grabbing Scope Data
+                echo "    This is a standard policy"
+                ## Extract Scoped Computer Group ID(s)
+                unset grpID
+                grpID=( $( echo $objectData | /usr/bin/perl -lne 'BEGIN{undef $/} while (/<computer_groups>(.*?)<\/computer_groups>/sg){print $1}' | /usr/bin/perl -lne 'BEGIN{undef $/} while (/<id>(.*?)<\/id>/sg){print $1}' ) )
+                if [[ ${#grpID[@]} -eq 0 ]]; then
+                    echo "No Computer Groups Scoped in $1 ${objectIDs[$i]}..."
+                else
+                    echo "Computer Groups found for $1 ${objectIDs[$i]}..."
+                    for n in "${grpID[@]}"; do
+                        eval compGrp$n+=\(\"$objectName \($1\)\"\)
+                    done
+                fi
+            fi
+        else
+            unset grpID
+            grpID=( $( echo $objectData | /usr/bin/perl -lne 'BEGIN{undef $/} while (/<computer_groups>(.*?)<\/computer_groups>/sg){print $1}' | /usr/bin/perl -lne 'BEGIN{undef $/} while (/<id>(.*?)<\/id>/sg){print $1}' ) )
+            if [[ ${#grpID[@]} -eq 0 ]]; then
+                echo "No Computer Groups Scoped in $1 ${objectIDs[$i]}..."
+            else
+                echo "Computer Groups found for $1 ${objectIDs[$i]}..."
+                for n in "${grpID[@]}"; do
+                    eval compGrp$n+=\(\"$objectName \($1\)\"\)
+                done
+            fi
+        fi
+        sleep .3
+    done
+}
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # APPLICATION
@@ -80,39 +137,12 @@ while [ $index -lt ${compGrpSize} ]; do
     ((index++))
 done
 
-## Retrieve & Filter Policy Data
-echo "Retrieving List of All Policy IDs..."
-unset policyIDs
-policyIDs=( $( curl -k -s -u "$jamfUser":"$jamfPass" $jamfURL/JSSResource/policies -H "Accept: application/xml" -X GET | /usr/bin/perl -lne 'BEGIN{undef $/} while (/<id>(.*?)<\/id>/sg){print $1}' ) )
-for i in "${policyIDs[@]}"; do
-    echo "Retrieving Policy ID ${i}'s' Data..."
-    policyData=$( curl -k -s -u "$jamfUser":"$jamfPass" $jamfURL/JSSResource/policies/id/${i} -H "Accept: application/xml" -X GET )
-    policyName=$( echo $policyData | xpath "//policy/general/name/text()" )
-    ## Check if is a Jamf Remote Policy
-    echo "Checking if this is a Jamf Remote Policy..."
-    if [[ $policyName == $( echo $policyName | egrep -B1 '[0-9]+-[0-9]{2}-[0-9]{2} at [0-9]{1,2}:[0-9]{2,2} [AP]M \| .* \| .*' ) ]]; then
-        ## This is a Jamf Remote Policy
-        ## Setting policy name in array to "JamfRemotePolicy-Ignore"
-        echo "    This is a Jamf Remote policy"
-        continue
-    else
-        ## This is NOT a Casper Remote Policy
-        ## Storing Policy Name and Grabbing Scope Data
-        echo "    This is a standard policy"
-        ## Extract Scoped Computer Group ID(s)
-        unset grpID
-        grpID=( $( echo $policyData | /usr/bin/perl -lne 'BEGIN{undef $/} while (/<computer_groups>(.*?)<\/computer_groups>/sg){print $1}' | /usr/bin/perl -lne 'BEGIN{undef $/} while (/<id>(.*?)<\/id>/sg){print $1}' ) )
-        if [[ ${#grpID[@]} -eq 0 ]]; then
-            echo "No Computer Groups Scoped in Policy ${policyIDs[$i]}..."
-        else
-            echo "Computer Groups found for Policy ${policyIDs[$i]}..."
-            for n in "${grpID[@]}"; do
-                eval compGrp$n+=\(\"$policyName \(Policy\)\"\)
-            done
-        fi
-    fi
-    sleep .3
-done
+## Check Policies, Configuration Profiles, Restircted Software and Mac App Store Apps
+findScopedObjects "Policy" "policies" "policy"
+findScopedObjects "Configuration Profile" "osxconfigurationprofiles" "os_x_configuration_profile"
+findScopedObjects "Restricted Software" "restrictedsoftware" "restricted_software"
+findScopedObjects "Mac App Store App" "macapplications" "mac_application"
+findScopedObjects "eBook" "ebooks" "ebook"
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # BUILD HTML REPORT

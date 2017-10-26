@@ -1,3 +1,4 @@
+![logo](/resources/logo.png)
 # JamfProGroupsScoped
 ###### Have you ever wanted to know what was scoped to your Jamf Pro groups? Well, now you can!
 ___
@@ -35,4 +36,4 @@ When you open the script you will find some user variables that will need to be 
 
 *The report should have auto-opened in your default browser. Otherwise it will also be saved to your desktop.*
 
-![Sample Report](https://github.com/kc9wwh/JamfProGroupsScoped/raw/master/Jamf%20Pro%20Computer%20Groups%20Report%20Sample.png)
+![Sample Report](/resources/Jamf%20Pro%20Computer%20Groups%20Report%20Sample.png)

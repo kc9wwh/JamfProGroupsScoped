@@ -34,3 +34,5 @@ When you open the script you will find some user variables that will need to be 
 **Step 3 - View the Report & Enjoy!**
 
 *The report should have auto-opened in your default browser. Otherwise it will also be saved to your desktop.*
+
+![Sample Report](https://github.com/kc9wwh/JamfProGroupsScoped/raw/master/Jamf%20Pro%20Computer%20Groups%20Report%20Sample.png)

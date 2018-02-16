@@ -125,6 +125,11 @@ compGrpSize=$( echo $compGroupData | xpath "//computer_groups/size/text()" )
 
 ## Error handling for computer group data and size
 
+if [[ $jamfURL == "https://acme.jamfcloud.com" ]]; then
+	echo "ERROR: Please edit the jamfURL field to your own JSS."
+	exit 3
+fi
+
 if [[ ${#compGroupData} -lt 2 || $compGrpSize == 0 ]] ; then
 	echo "ERROR: No groups were downloaded.  Please verify connection to the JSS."
 	exit 2

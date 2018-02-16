@@ -122,6 +122,24 @@ function findScopedObjects() {
 ## Retrieve & Extract Computer Group IDs/Names & Build Array
 compGroupData=$( curl -k -s -u "$jamfUser":"$jamfPass" $jamfURL/JSSResource/computergroups -H "Accept: application/xml" -X GET )
 compGrpSize=$( echo $compGroupData | xpath "//computer_groups/size/text()" )
+
+## Error handling for computer group data and size
+
+if [[ $jamfURL == "https://acme.jamfcloud.com" ]]; then
+	echo "ERROR: Please edit the jamfURL field to your own JSS."
+	exit 3
+fi
+
+if [[ ${#compGroupData} -lt 2 || $compGrpSize == 0 ]] ; then
+	echo "ERROR: No groups were downloaded.  Please verify connection to the JSS."
+	exit 2
+fi
+
+if [[ -n $(echo $compGroupData | grep -o "Unauthorized") ]]; then
+	echo "ERROR: JSS rejected the API credentials.  Please double-check the script and run again."
+	exit 1
+fi
+
 index=0
 declare -a compGrpNames
 declare -a compGrpIDs

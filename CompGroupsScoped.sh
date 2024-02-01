@@ -43,10 +43,10 @@
 # For more information, visit https://github.com/kc9wwh/JamfProGroupsScoped
 #
 #
-# Written by: Joshua Roskos | Professional Services Engineer | Jamf
+# Written by: Joshua Roskos | Jamf
 #
 # Created On: October 2nd, 2017
-# Updated On: February 16th, 2018
+# Updated On: February 1st, 2024 (added support for Sonoma and bearer token)
 #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
@@ -55,13 +55,18 @@
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 jamfURL="https://acme.jamfcloud.com"
-jamfUser="apiread"
+jamfUser="username"
 jamfPass="password"
 currentUser=$(/usr/bin/stat -f%Su /dev/console)
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # FUNCTIONS
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+getBearerToken() {
+	response=$(curl -s -u "$jamfUser":"$jamfPass" "$jamfURL"/api/v1/auth/token -X POST)
+	access_token=$(echo "$response" | plutil -extract token raw -)
+}
 
 ## Function Format - findScopedObjects
 ## $1: Object Type (Policy, Configuration Profile, Restricted Software, Mac App Store App, eBook)
@@ -70,11 +75,11 @@ currentUser=$(/usr/bin/stat -f%Su /dev/console)
 function findScopedObjects() {
     echo "Retrieving List of All $1 IDs..."
     unset objectIDs
-    objectIDs=( $( curl -k -s -u "$jamfUser":"$jamfPass" $jamfURL/JSSResource/$2 -H "Accept: application/xml" -X GET | /usr/bin/perl -lne 'BEGIN{undef $/} while (/<id>(.*?)<\/id>/sg){print $1}' ) )
+    objectIDs=( $( curl -k -s -H "Authorization: Bearer $access_token" $jamfURL/JSSResource/$2 -H "Accept: application/xml" -X GET | /usr/bin/perl -lne 'BEGIN{undef $/} while (/<id>(.*?)<\/id>/sg){print $1}' ) )
     for i in "${objectIDs[@]}"; do
         echo "Retrieving $1 ID ${i}'s' Data..."
-        objectData=$( curl -k -s -u "$jamfUser":"$jamfPass" $jamfURL/JSSResource/$2/id/${i} -H "Accept: application/xml" -X GET )
-        objectName=$( echo $objectData | xpath "//$3/general/name/text()" )
+        objectData=$( curl -k -s -H "Authorization: Bearer $access_token" $jamfURL/JSSResource/$2/id/${i} -H "Accept: application/xml" -X GET )
+        objectName=$( echo $objectData | xpath -e "//$3/general/name/text()" )
         if [[ "$1" == "Policy" ]]; then
             ## Check if is a Jamf Remote Policy
             echo "Checking if this is a Jamf Remote Policy..."
@@ -119,9 +124,11 @@ function findScopedObjects() {
 # APPLICATION
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
+getBearerToken
+
 ## Retrieve & Extract Computer Group IDs/Names & Build Array
-compGroupData=$( curl -k -s -u "$jamfUser":"$jamfPass" $jamfURL/JSSResource/computergroups -H "Accept: application/xml" -X GET )
-compGrpSize=$( echo $compGroupData | xpath "//computer_groups/size/text()" )
+compGroupData=$( curl -k -s -H "Authorization: Bearer $access_token" $jamfURL/JSSResource/computergroups -H "Accept: application/xml" -X GET )
+compGrpSize=$( echo $compGroupData | xpath -e "//computer_groups/size/text()" )
 
 ## Error handling for computer group data and size
 
@@ -145,8 +152,8 @@ declare -a compGrpNames
 declare -a compGrpIDs
 while [ $index -lt ${compGrpSize} ]; do
     element=$(($index+1))
-    compGrpName=$( echo $compGroupData | xpath "//computer_groups/computer_group[${element}]/name/text()" )
-    compGrpID=$( echo $compGroupData | xpath "//computer_groups/computer_group[${element}]/id/text()" )
+    compGrpName=$( echo $compGroupData | xpath -e "//computer_groups/computer_group[${element}]/name/text()" )
+    compGrpID=$( echo $compGroupData | xpath -e "//computer_groups/computer_group[${element}]/id/text()" )
     echo "Computer Group ID: $compGrpID"
     echo "Computer Group Name: $compGrpName"
     compGrpNames[$index]="$compGrpName"

@@ -8,9 +8,9 @@ Requirements:
 * Jamf Pro
 * API Read Only User
 
-Written By: Joshua Roskos | Professional Services Engineer | Jamf
+Written By: Joshua Roskos | Jamf
 
-Created On: October 2nd, 2017 | Updated On: February 16th, 2018
+Created On: October 2nd, 2017 | Updated On: February 1st, 2024
 ___
 
 ### Why is this needed?
